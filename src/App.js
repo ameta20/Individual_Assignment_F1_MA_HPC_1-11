@@ -2,6 +2,8 @@ import './App.css';
 import {useState, useEffect} from 'react'
 import {fetchCSV} from "./utils/helper";
 import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer";
+import ParallelCoordinatesContainer from "./components/parallel/ParallelCoordinatesContainer";
+
 
 function App() {
     console.log("App component function call...")
@@ -25,18 +27,24 @@ function App() {
     const [selectedItems, setSelectedItems] = useState([])
 
     const scatterplotControllerMethods= {
-        updateSelectedItems: (items) =>{
-            setSelectedItems(items.map((item) => {return {...item,selected:true}} ));
+         updateSelectedItems: (items) => {
+            // Handle both single and multiple selections
+            const newSelection = Array.isArray(items) ? items : [items];
+            setSelectedItems(newSelection.map(item => ({...item, selected: true})));
         }
     };
 
     return (
         <div className="App">
             <div id={"MultiviewContainer"} className={"row"}>
-                <ScatterplotContainer scatterplotData={data} xAttribute={"area"} yAttribute={"price"} selectedItems={selectedItems} scatterplotControllerMethods={scatterplotControllerMethods}/>
-                
+                <ScatterplotContainer scatterplotData={data} xAttribute={"area"} yAttribute={"price"} selectedItems={selectedItems} scatterplotControllerMethods={scatterplotControllerMethods}/>  
+                <ParallelCoordinatesContainer
+                            data={data}
+                            selectedItems={selectedItems}
+                            controllerMethods={scatterplotControllerMethods}
+                />
             </div>
-        </div>
+    </div>
     );
 }
 

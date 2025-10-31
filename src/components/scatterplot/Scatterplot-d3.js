@@ -46,7 +46,63 @@ class ScatterplotD3 {
         this.matSvg.append("g")
             .attr("class","yAxisG")
         ;
+
+         this.brushG = this.matSvg.append("g")
+            .attr("class", "brush");
+            
+        // Create brush
+        this.brush = d3.brush()
+            .extent([[0, 0], [this.width, this.height]])
+            .on("brush", (event) => this.brushed(event))
+            .on("end", (event) => this.brushEnded(event));
+            
+        this.brushG.call(this.brush);
     }
+
+    brushed(event) {
+    if (!event.selection) return;
+    const [[x0, y0], [x1, y1]] = event.selection;
+    
+    // Get the selected points as an array first
+    const selectedPoints = [];
+    this.matSvg.selectAll(".markerG").each(function(d) {
+        const x = this.xScale(d[this.currentXAttribute]);
+        const y = this.yScale(d[this.currentYAttribute]);
+        if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
+            selectedPoints.push(d);
+        }
+    }.bind(this));
+
+    // Update visual appearance
+    this.matSvg.selectAll(".markerG")
+        .style("opacity", d => selectedPoints.some(p => p.index === d.index) ? 1 : this.defaultOpacity)
+        .select(".markerCircle")
+        .attr("stroke-width", d => selectedPoints.some(p => p.index === d.index) ? 2 : 0);
+    
+    // Update selection state
+    if (this.controllerMethods && this.controllerMethods.handleOnClick) {
+        this.controllerMethods.handleOnClick(selectedPoints);
+    }
+}
+
+    
+
+    brushEnded(event) {
+        if (!event.selection) {
+            this.changeBorderAndOpacity(this.matSvg.selectAll(".markerG"), false);
+            return;
+        }
+        
+        const [[x0, y0], [x1, y1]] = event.selection;
+        const selectedData = this.currentData.filter(d => {
+            const x = this.xScale(d[this.currentXAttribute]);
+            const y = this.yScale(d[this.currentYAttribute]);
+            return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+        });
+        
+        this.controllerMethods.handleOnClick(selectedData);
+    }
+
 
     changeBorderAndOpacity(selection, selected){
         selection.style("opacity", selected?1:this.defaultOpacity)
@@ -113,7 +169,12 @@ class ScatterplotD3 {
 
     renderScatterplot = function (visData, xAttribute, yAttribute, controllerMethods){
         console.log("render scatterplot with a new data list ...")
-        // build the size scales and x,y axis
+        
+        this.currentData = visData;
+        this.currentXAttribute = xAttribute;
+        this.currentYAttribute = yAttribute;
+        this.controllerMethods = controllerMethods;
+
         this.updateAxis(visData, xAttribute, yAttribute);
 
         this.matSvg.selectAll(".markerG")
