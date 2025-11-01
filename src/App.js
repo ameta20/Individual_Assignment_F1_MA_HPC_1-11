@@ -1,6 +1,7 @@
 import './App.css';
 import {useState, useEffect} from 'react'
 import {fetchCSV} from "./utils/helper";
+import * as d3 from 'd3';
 import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer";
 import ParallelCoordinatesContainer from "./components/parallel/ParallelCoordinatesContainer";
 
@@ -26,13 +27,18 @@ function App() {
 
     const [selectedItems, setSelectedItems] = useState([])
 
-    const scatterplotControllerMethods= {
-         updateSelectedItems: (items) => {
-            // Handle both single and multiple selections
-            const newSelection = Array.isArray(items) ? items : [items];
-            setSelectedItems(newSelection.map(item => ({...item, selected: true})));
-        }
-    };
+    const scatterplotControllerMethods = {
+    updateSelectedItems: (items) => {
+        // Add transition for smoother updates
+        d3.select('#MultiviewContainer')
+            .transition()
+            .duration(300)
+            .ease(d3.easeLinear)
+            .on('end', () => {
+                setSelectedItems(items.map(item => ({...item, selected: true})));
+            });
+    }
+};
 
     return (
         <div className="App">
@@ -44,7 +50,7 @@ function App() {
                             controllerMethods={scatterplotControllerMethods}
                 />
             </div>
-    </div>
+        </div>
     );
 }
 

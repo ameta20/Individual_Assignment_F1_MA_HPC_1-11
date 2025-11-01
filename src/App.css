@@ -14,3 +14,21 @@
     float: left;
     width: 50%;
 }
+
+
+#MultiviewContainer {
+    display: flex;
+    height: 100vh;
+    padding: 20px;
+    gap: 20px;
+}
+
+.parallel-coordinates-container {
+    flex: 1;
+    min-height: 400px;
+}
+
+.scatterplotDivContainer {
+    flex: 1;
+    min-height: 400px;
+}

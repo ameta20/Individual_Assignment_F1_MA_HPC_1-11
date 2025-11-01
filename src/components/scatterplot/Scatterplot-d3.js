@@ -63,21 +63,28 @@ class ScatterplotD3 {
     if (!event.selection) return;
     const [[x0, y0], [x1, y1]] = event.selection;
     
-    // Get the selected points as an array first
+    // Store scales and attributes in local variables
+    const xScale = this.xScale;
+    const yScale = this.yScale;
+    const xAttribute = this.currentXAttribute;
+    const yAttribute = this.currentYAttribute;
+    
+    // Get the selected points as an array
     const selectedPoints = [];
     this.matSvg.selectAll(".markerG").each(function(d) {
-        const x = this.xScale(d[this.currentXAttribute]);
-        const y = this.yScale(d[this.currentYAttribute]);
+        const x = xScale(d[xAttribute]);
+        const y = yScale(d[yAttribute]);
         if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
             selectedPoints.push(d);
         }
-    }.bind(this));
+    });
 
     // Update visual appearance
     this.matSvg.selectAll(".markerG")
-        .style("opacity", d => selectedPoints.some(p => p.index === d.index) ? 1 : this.defaultOpacity)
-        .select(".markerCircle")
-        .attr("stroke-width", d => selectedPoints.some(p => p.index === d.index) ? 2 : 0);
+        .each((d, i, nodes) => {
+            const isSelected = selectedPoints.some(p => p.index === d.index);
+            this.changeBorderAndOpacity(d3.select(nodes[i]), isSelected);
+        });
     
     // Update selection state
     if (this.controllerMethods && this.controllerMethods.handleOnClick) {
@@ -105,12 +112,12 @@ class ScatterplotD3 {
 
 
     changeBorderAndOpacity(selection, selected){
-        selection.style("opacity", selected?1:this.defaultOpacity)
-        ;
+        selection.style("opacity", selected ? 1 : this.defaultOpacity);
 
-        selection.select(".markerCircle")
-            .attr("stroke-width",selected?2:0)
-        ;
+    selection.select(".markerCircle")
+        .attr("stroke-width", selected ? 2 : 0)
+        .attr("stroke", selected ? "red" : "none")
+        .attr("fill", selected ? "red" : "black"); 
     }
 
     updateMarkers(selection,xAttribute,yAttribute){
@@ -193,9 +200,10 @@ class ScatterplotD3 {
                     ;
                     // render element as child of each element "g"
                     itemG.append("circle")
-                        .attr("class","markerCircle")
-                        .attr("r",this.circleRadius)
-                        .attr("stroke","red")
+                        .attr("class", "markerCircle")
+                        .attr("r", this.circleRadius)
+                        .attr("stroke", "none")
+                        .attr("fill", "black")
                     ;
                     this.updateMarkers(itemG,xAttribute,yAttribute);
                 },

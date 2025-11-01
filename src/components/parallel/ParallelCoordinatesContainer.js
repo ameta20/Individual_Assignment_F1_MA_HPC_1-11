@@ -1,38 +1,53 @@
 import React, { useRef, useEffect } from "react";
 import * as d3 from "d3";
 import ParallelCoordinatesD3 from "./ParallelCoordinates-d3";
+import './ParallelCoordinates.css';
 
 function ParallelCoordinatesContainer({ data, selectedItems, controllerMethods }) {
-  const svgRef = useRef();
-  const pcRef = useRef();
+    const svgRef = useRef();
+    const pcRef = useRef();
+    const containerRef = useRef();
 
-  useEffect(() => {
-    if (!data || data.length === 0) return;
+    // Get container dimensions
+    const getChartSize = () => {
+        if (!containerRef.current) return { width: 600, height: 400 };
+        return {
+            width: containerRef.current.offsetWidth,
+            height: containerRef.current.offsetHeight
+        };
+    };
 
-    if (!pcRef.current) {
-      pcRef.current = new ParallelCoordinatesD3({
-        svg: svgRef.current,
-        width: 600,
-        height: 400,
-        onSelectionChange: controllerMethods.updateSelectedItems,
-      });
-    }
+    // Initialize and update visualization
+    useEffect(() => {
+        if (!data || data.length === 0) return;
 
-    pcRef.current.updateData(data);
-  }, [data]);
+        if (!pcRef.current) {
+            const size = getChartSize();
+            pcRef.current = new ParallelCoordinatesD3({
+                svg: svgRef.current,
+                width: size.width,
+                height: size.height,
+                onSelectionChange: controllerMethods.updateSelectedItems
+            });
+        }
 
-  // update highlights whenever selection changes
-  useEffect(() => {
-    if (pcRef.current) {
-      pcRef.current.updateSelection(new Set(selectedItems.map((d) => d.index)));
-    }
-  }, [selectedItems]);
+        pcRef.current.updateData(data);
+    }, [data, controllerMethods]);
 
-  return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <svg ref={svgRef} width="100%" height="100%"></svg>
-    </div>
-  );
+    // Update highlights when selection changes
+    useEffect(() => {
+        if (pcRef.current && selectedItems) {
+            pcRef.current.g.selectAll('.line')
+                .style('stroke', d => selectedItems.some(item => item.index === d.index) ? 'red' : '#69b3a2')
+                .style('opacity', d => selectedItems.some(item => item.index === d.index) ? 1 : 0.3);
+        }
+    }, [selectedItems]);
+
+    return (
+        <div ref={containerRef} className="parallel-coordinates-container">
+            <svg ref={svgRef}></svg>
+        </div>
+    );
 }
 
 export default ParallelCoordinatesContainer;
