@@ -46,35 +46,22 @@ function ScatterplotContainer({scatterplotData, xAttribute, yAttribute, selected
     useEffect(()=>{
         console.log("ScatterplotContainer useEffect with dependency [scatterplotData, xAttribute, yAttribute, scatterplotControllerMethods], called each time any dependancy changes...");
 
-        const handleOnClick = function(itemData){
-            console.log("handleOnClick ...")
-            scatterplotControllerMethods.updateSelectedItems([itemData])
-        }
-        const handleOnMouseEnter = function(itemData){
-        }
-        const handleOnMouseLeave = function(){
-        }
-
-        const controllerMethods={
-            handleOnClick,
-            handleOnMouseEnter,
-            handleOnMouseLeave
-        }
-
-        if(scatterplotDataRef.current !== scatterplotData) {
+        if(scatterplotDataRef.current !== scatterplotData && scatterplotData.length > 0) {
             console.log("ScatterplotContainer useEffect with dependency when scatterplotData changes...");
             // get the current instance of scatterplotD3 from the Ref object...
             const scatterplotD3 = scatterplotD3Ref.current
             // call renderScatterplot of ScatterplotD3...;
-            scatterplotD3.renderScatterplot(scatterplotData, xAttribute, yAttribute, controllerMethods);
+            scatterplotD3.renderScatterplot(scatterplotData, xAttribute, yAttribute, scatterplotControllerMethods);
             scatterplotDataRef.current = scatterplotData;
         }
     },[scatterplotData, xAttribute, yAttribute, scatterplotControllerMethods]);// if dependencies, useEffect is called after each data update, in our case only scatterplotData changes.
 
-        useEffect(() => {
-        const scatterplotD3 = scatterplotD3Ref.current;
+useEffect(() => {
+    const scatterplotD3 = scatterplotD3Ref.current;
+    if (scatterplotD3) {
         scatterplotD3.highlightSelectedItems(selectedItems);
-        }, [selectedItems]);
+    }
+}, [selectedItems]);
 
    
 

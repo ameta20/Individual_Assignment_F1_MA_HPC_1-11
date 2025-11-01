@@ -60,7 +60,7 @@ export default class ParallelCoordinatesD3 {
 
         // Draw lines
         this.g.selectAll('.line')
-            .data(this.data, d => d.id) // use stable id
+            .data(this.data, d => d.index) // use stable index
             .join('path')
             .attr('class', 'line')
             .attr('d', d => this.path(d))
@@ -90,7 +90,7 @@ export default class ParallelCoordinatesD3 {
             .style('opacity', 0.1);
 
         this.g.selectAll('.line')
-            .filter(line => line.id === d.id)
+            .filter(line => line.index === d.index)
             .style('opacity', 1)
             .style('stroke-width', 2)
             .raise();
@@ -107,32 +107,38 @@ export default class ParallelCoordinatesD3 {
     }
 }
 
-    brushed(event, dimension) {
+   brushed(event, dimension) {
     if (!event.selection) {
         this.activeSelections.delete(dimension);
     } else {
         this.activeSelections.set(dimension, event.selection);
     }
-    this.updateSelection(); // Changed from updateSelections
+    this.updateSelection();
 }
 
-    // Remove updateSelection method and rename updateSelections to updateSelection
+// Modify the updateSelection method
 updateSelection(selectedItems) {
     if (!this.g) return;
 
-    // If selectedItems is provided (from scatterplot), use those
+    // For selections from scatterplot
     if (selectedItems) {
+        console.log("Received selection from scatterplot:", selectedItems); // Debug
+        const selectedIndices = new Set(selectedItems.map(d => d.index));
         this.g.selectAll('.line')
             .transition()
             .duration(300)
-            .style('stroke', d => selectedItems.some(item => item.index === d.index) ? 'purple' : this.colorScale(d.furnishingstatus))
-            .style('opacity', d => selectedItems.length === 0 ? 0.3 : 
-                selectedItems.some(item => item.index === d.index) ? 1 : 0.1)
-            .style('stroke-width', d => selectedItems.some(item => item.index === d.index) ? 2 : 1);
+            .style('stroke', d => {
+                const isSelected = selectedIndices.has(d.index);
+                return isSelected ? 'purple' : this.colorScale(d.furnishingstatus);
+            })
+            .style('opacity', d => {
+                const isSelected = selectedIndices.has(d.index);
+                return selectedItems.length === 0 ? 0.3 : isSelected ? 1 : 0.1;
+            });
         return;
     }
 
-    // Otherwise, use activeSelections from brushing
+    // For brushing in parallel coordinates
     if (!this.data) return;
     
     const selected = this.data.filter(d => {
@@ -143,32 +149,34 @@ updateSelection(selectedItems) {
             });
     });
 
+    console.log("Selected from parallel coordinates:", selected); // Debug
+    const selectedIndices = new Set(selected.map(d => d.index));
+
     this.g.selectAll('.line')
         .transition()
         .duration(300)
-        .style('stroke', d => selected.includes(d) ? 'red' : this.colorScale(d.furnishingstatus))
+        .style('stroke', d => selectedIndices.has(d.index) ? 'red' : this.colorScale(d.furnishingstatus))
         .style('opacity', d => selected.length === 0 ? 0.3 : 
-            selected.includes(d) ? 1 : 0.1)
-        .style('stroke-width', d => selected.includes(d) ? 2 : 1);
+            selectedIndices.has(d.index) ? 1 : 0.1);
 
+    // Notify the parent component about the selection
     if (this.onSelectionChange) {
-        this.onSelectionChange(selected);
+        // Make sure we pass the complete data objects with index
+        this.onSelectionChange(selected.map(d => ({...d, selected: true})));
     }
 }
+
 
 brushEnded(event, dimension) {
     if (!event.selection) {
         this.activeSelections.delete(dimension);
-        if (this.activeSelections.size === 0) {
-            this.g.selectAll('.line')
-                .style('stroke', d => this.colorScale(d.furnishingstatus))
-                .style('opacity', 0.3)
-                .style('stroke-width', 1);
-            if (this.onSelectionChange) {
-                this.onSelectionChange([]);
-            }
-        } else {
-            this.updateSelection(); // Changed from updateSelections to updateSelection
+    }
+    // We update the selection on brush, but also on end to capture final state
+    this.brushed(event, dimension);
+
+    if (this.activeSelections.size === 0) {
+        if (this.onSelectionChange) {
+            this.onSelectionChange([]);
         }
     }
 }

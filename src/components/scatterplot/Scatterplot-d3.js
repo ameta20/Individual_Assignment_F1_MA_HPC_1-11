@@ -59,65 +59,28 @@ class ScatterplotD3 {
         this.brushG.call(this.brush);
     }
 
-    brushed(event) {
+   brushed(event) {
     if (!event.selection) return;
     const [[x0, y0], [x1, y1]] = event.selection;
     
-    // Store scales and attributes in local variables
-    const xScale = this.xScale;
-    const yScale = this.yScale;
-    const xAttribute = this.currentXAttribute;
-    const yAttribute = this.currentYAttribute;
-    
-    // Get the selected points as an array
-    const selectedPoints = [];
-    this.matSvg.selectAll(".markerG").each(function(d) {
-        const x = xScale(d[xAttribute]);
-        const y = yScale(d[yAttribute]);
-        if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
-            selectedPoints.push(d);
-        }
+    // Find points within brush selection
+    const selected = this.currentData.filter(d => {
+        const x = this.xScale(d[this.currentXAttribute]);
+        const y = this.yScale(d[this.currentYAttribute]);
+        return x >= x0 && x <= x1 && y >= y0 && y <= y1;
     });
 
-    // Update visual appearance
-    this.matSvg.selectAll(".markerG")
-        .each((d, i, nodes) => {
-            const isSelected = selectedPoints.some(p => p.index === d.index);
-            this.changeBorderAndOpacity(d3.select(nodes[i]), isSelected);
-        });
-    
-    // Update selection state
-    if (this.controllerMethods && this.controllerMethods.handleOnClick) {
-        this.controllerMethods.handleOnClick(selectedPoints);
+    if (this.controllerMethods?.updateSelectedItems) {
+        this.controllerMethods.updateSelectedItems(selected, 'scatterplot');
     }
 }
-
     
-
     brushEnded(event) {
         if (!event.selection) {
-            this.changeBorderAndOpacity(this.matSvg.selectAll(".markerG"), false);
-            return;
+            if (this.controllerMethods?.updateSelectedItems) {
+                this.controllerMethods.updateSelectedItems([], 'scatterplot');
+            }
         }
-        
-        const [[x0, y0], [x1, y1]] = event.selection;
-        const selectedData = this.currentData.filter(d => {
-            const x = this.xScale(d[this.currentXAttribute]);
-            const y = this.yScale(d[this.currentYAttribute]);
-            return x >= x0 && x <= x1 && y >= y0 && y <= y1;
-        });
-        
-        this.controllerMethods.handleOnClick(selectedData);
-    }
-
-
-    changeBorderAndOpacity(selection, selected){
-        selection.style("opacity", selected ? 1 : this.defaultOpacity);
-
-    selection.select(".markerCircle")
-        .attr("stroke-width", selected ? 2 : 0)
-        .attr("stroke", selected ? "red" : "none")
-        .attr("fill", selected ? "red" : "black"); 
     }
 
     updateMarkers(selection,xAttribute,yAttribute){
@@ -131,19 +94,24 @@ class ScatterplotD3 {
                 return "translate("+xPos+","+yPos+")";
             })
         ;
-        this.changeBorderAndOpacity(selection,false)
+        selection.style("opacity",this.defaultOpacity);
+        selection.select(".markerCircle")
+            .attr("fill", "black");
     }
 
-    highlightSelectedItems(selectedIds) {
+    highlightSelectedItems(selectedItems) {
+        if (!this.matSvg) return;
+        const selectedIndices = new Set(selectedItems.map(d => d.index));
+
+        this.matSvg.selectAll(".markerG")
+            .transition().duration(300)
+            .style("opacity", d => {
+                return selectedItems.length === 0 ? this.defaultOpacity : selectedIndices.has(d.index) ? 1 : 0.1;
+            });
+
         this.matSvg.selectAll(".markerCircle")
-            .attr("fill", d => selectedIds.includes(d.id) ? "red" : "#69b3a2")
-            .attr("opacity", d =>
-            selectedIds.length === 0
-                ? 0.8
-                : selectedIds.includes(d.id)
-                ? 1
-                : 0.3
-            );
+            .transition().duration(300)
+            .attr("fill", d => selectedIndices.has(d.index) ? "purple" : "black");
         }
 
 
@@ -189,9 +157,6 @@ class ScatterplotD3 {
                     const itemG=enter.append("g")
                         .attr("class","markerG")
                         .style("opacity",this.defaultOpacity)
-                        .on("click", (event,itemData)=>{
-                            controllerMethods.handleOnClick(itemData);
-                        })
                     ;
                     // render element as child of each element "g"
                     itemG.append("circle")

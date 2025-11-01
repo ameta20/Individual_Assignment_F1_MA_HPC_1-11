@@ -6,45 +6,75 @@ import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer"
 import ParallelCoordinatesContainer from "./components/parallel/ParallelCoordinatesContainer";
 
 function App() {
-    const [data, setData] = useState([])
-    const [selectedItems, setSelectedItems] = useState([])
+    const [data, setData] = useState([]);
+    const [selectedItems, setSelectedItems] = useState([]);
 
+    // Load and process data
     useEffect(() => {
+        console.log("Loading data...");
         fetchCSV("data/Housing.csv", (response) => {
+            console.log("Data loaded:", response.data);
             const processed = response.data.map((d, i) => ({
                 ...d,
-                id: i // unique id for synchronization
-        }));
-        setData(processed);
-        })
-    }, [])
+                price: +d.price,
+                area: +d.area,
+                bedrooms: +d.bedrooms,
+                bathrooms: +d.bathrooms,
+                stories: +d.stories,
+                parking: +d.parking,
+                index: i
+            }));
+            setData(processed);
+        });
+    }, []);
 
+    // Shared controller for both visualizations
     const visualizationController = {
-            updateSelectedItems: (items) => {
-                // Store complete data objects instead of just IDs
-                setSelectedItems(Array.isArray(items) ? items : []);
+        updateSelectedItems: (items, source) => {
+            console.log(`Selection update from ${source}:`, items);
+            
+            if (!Array.isArray(items) || items.length === 0) {
+                setSelectedItems([]);
+                return;
             }
-        };
 
+            // Find matching items based on price and area values
+            const matchingItems = data.filter(d => 
+                items.some(item => 
+                    d.price === item.price && 
+                    d.area === item.area
+                )
+            );
+            
+            console.log("Matching items:", matchingItems);
+            setSelectedItems(matchingItems);
+        }
+    };
 
+    // Debug data and selections
+    useEffect(() => {
+        console.log("Data updated:", data);
+    }, [data]);
+
+    useEffect(() => {
+        console.log("Selection updated:", selectedItems);
+    }, [selectedItems]);
 
     return (
         <div className="App">
-             <div id={"MultiviewContainer"} className={"row"}>
+            <div id={"MultiviewContainer"} className={"row"}>
                 <ScatterplotContainer
                     scatterplotData={data}
                     xAttribute={"area"}
                     yAttribute={"price"}
                     selectedItems={selectedItems}
                     scatterplotControllerMethods={visualizationController}
-                    />
-
-                    <ParallelCoordinatesContainer
+                />
+                <ParallelCoordinatesContainer
                     data={data}
                     selectedItems={selectedItems}
                     controllerMethods={visualizationController}
-                    />
-
+                />
             </div>
         </div>
     );
