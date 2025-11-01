@@ -27,7 +27,11 @@ function ParallelCoordinatesContainer({ data, selectedItems, controllerMethods }
                 svg: svgRef.current,
                 width: size.width,
                 height: size.height,
-                onSelectionChange: controllerMethods.updateSelectedItems
+                onSelectionChange: (selected) => {
+                    // Make sure we pass complete data objects
+                    const selectedData = selected.map(d => ({...d, selected: true}));
+                    controllerMethods.updateSelectedItems(selectedData);
+                }
             });
         }
 
@@ -37,9 +41,8 @@ function ParallelCoordinatesContainer({ data, selectedItems, controllerMethods }
     // Update highlights when selection changes
     useEffect(() => {
         if (pcRef.current && selectedItems) {
-            pcRef.current.g.selectAll('.line')
-                .style('stroke', d => selectedItems.some(item => item.index === d.index) ? 'red' : '#69b3a2')
-                .style('opacity', d => selectedItems.some(item => item.index === d.index) ? 1 : 0.3);
+            // Update the parallel coordinates visualization's selection state
+            pcRef.current.updateSelection(selectedItems);
         }
     }, [selectedItems]);
 

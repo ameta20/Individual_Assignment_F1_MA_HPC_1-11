@@ -5,50 +5,46 @@ import * as d3 from 'd3';
 import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer";
 import ParallelCoordinatesContainer from "./components/parallel/ParallelCoordinatesContainer";
 
-
 function App() {
-    console.log("App component function call...")
-    const [data,setData] = useState([])
-    // every time the component re-render
-    useEffect(()=>{
-        console.log("App useEffect (called each time App re-renders)");
-    }); // if no dependencies, useEffect is called at each re-render
-
-    useEffect(()=>{
-        console.log("App did mount");
-        fetchCSV("data/Housing.csv",(response)=>{
-            console.log("initial setData() ...")
-            setData(response.data);
-        })
-        return ()=>{
-            console.log("App did unmount");
-        }
-    },[])
-
+    const [data, setData] = useState([])
     const [selectedItems, setSelectedItems] = useState([])
 
-    const scatterplotControllerMethods = {
-    updateSelectedItems: (items) => {
-        // Add transition for smoother updates
-        d3.select('#MultiviewContainer')
-            .transition()
-            .duration(300)
-            .ease(d3.easeLinear)
-            .on('end', () => {
-                setSelectedItems(items.map(item => ({...item, selected: true})));
-            });
-    }
-};
+    useEffect(() => {
+        fetchCSV("data/Housing.csv", (response) => {
+            const processed = response.data.map((d, i) => ({
+                ...d,
+                id: i // unique id for synchronization
+        }));
+        setData(processed);
+        })
+    }, [])
+
+    const visualizationController = {
+            updateSelectedItems: (items) => {
+                // Store complete data objects instead of just IDs
+                setSelectedItems(Array.isArray(items) ? items : []);
+            }
+        };
+
+
 
     return (
         <div className="App">
-            <div id={"MultiviewContainer"} className={"row"}>
-                <ScatterplotContainer scatterplotData={data} xAttribute={"area"} yAttribute={"price"} selectedItems={selectedItems} scatterplotControllerMethods={scatterplotControllerMethods}/>  
-                <ParallelCoordinatesContainer
-                            data={data}
-                            selectedItems={selectedItems}
-                            controllerMethods={scatterplotControllerMethods}
-                />
+             <div id={"MultiviewContainer"} className={"row"}>
+                <ScatterplotContainer
+                    scatterplotData={data}
+                    xAttribute={"area"}
+                    yAttribute={"price"}
+                    selectedItems={selectedItems}
+                    scatterplotControllerMethods={visualizationController}
+                    />
+
+                    <ParallelCoordinatesContainer
+                    data={data}
+                    selectedItems={selectedItems}
+                    controllerMethods={visualizationController}
+                    />
+
             </div>
         </div>
     );

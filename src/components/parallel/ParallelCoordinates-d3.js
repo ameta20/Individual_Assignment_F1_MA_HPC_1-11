@@ -9,30 +9,24 @@ export default class ParallelCoordinatesD3 {
         this.onSelectionChange = onSelectionChange;
         this.activeSelections = new Map();
 
-         this.colorScale = d3.scaleOrdinal()
+        this.colorScale = d3.scaleOrdinal()
             .domain(['furnished', 'semi-furnished', 'unfurnished'])
             .range(['#1f77b4', '#2ca02c', '#ff7f0e']);
 
-        // Define numeric dimensions to show
         this.dimensions = ['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking'];
 
-        // Create scales for each dimension
         this.y = {};
         this.x = d3.scalePoint()
             .domain(this.dimensions)
             .range([0, this.width])
             .padding(1);
 
-        // Add group for the visualization
         this.g = this.svg.append('g')
             .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
     }
 
     updateData(data) {
-        this.data = data;
-
-
-        
+        this.data = data; // ✅ store data globally in the class
 
         // Create scales for each dimension
         this.dimensions.forEach(dimension => {
@@ -42,10 +36,7 @@ export default class ParallelCoordinatesD3 {
                 .nice();
         });
 
-
-        
-
-        // Add axes
+        // Draw axes
         const axes = this.g.selectAll('.axis')
             .data(this.dimensions)
             .join('g')
@@ -62,21 +53,17 @@ export default class ParallelCoordinatesD3 {
                     .style('fill', 'black'));
         });
 
-        // Add lines with path generator
-        const line = this.dimensions.map(d => {
-            return [this.x(d), d];
-        });
+        // Define path generator as a class property
+        this.path = d => d3.line()(
+            this.dimensions.map(dim => [this.x(dim), this.y[dim](+d[dim])])
+        );
 
-        const path = d => d3.line()(line.map(([x, dimension]) => {
-            return [x, this.y[dimension](+d[dimension])];
-        }));
-
-        // Update paths
+        // Draw lines
         this.g.selectAll('.line')
-            .data(data)
+            .data(this.data, d => d.id) // use stable id
             .join('path')
             .attr('class', 'line')
-            .attr('d', path)
+            .attr('d', d => this.path(d))
             .style('fill', 'none')
             .style('stroke', d => this.colorScale(d.furnishingstatus))
             .style('opacity', 0.3)
@@ -100,79 +87,95 @@ export default class ParallelCoordinatesD3 {
 
     highlightLine(d) {
         this.g.selectAll('.line')
-            .style('opacity', 0.1)
-            .style('stroke', d => this.colorScale(d.furnishingstatus));
+            .style('opacity', 0.1);
 
         this.g.selectAll('.line')
-            .filter(line => line === d)
+            .filter(line => line.id === d.id)
             .style('opacity', 1)
             .style('stroke-width', 2)
             .raise();
     }
 
-    unhighlightLine() {
-        if (this.activeSelections.size === 0) {
-            this.g.selectAll('.line')
-                .style('opacity', 0.3)
-                .style('stroke', d => this.colorScale(d.furnishingstatus))
-                .style('stroke-width', 1);
-        } else {
-            this.updateSelections();
-        }
+   unhighlightLine() {
+    if (this.activeSelections.size === 0) {
+        this.g.selectAll('.line')
+            .style('opacity', 0.3)
+            .style('stroke-width', 1)
+            .style('stroke', d => this.colorScale(d.furnishingstatus));
+    } else {
+        this.updateSelection(); // Changed from updateSelections to updateSelection
     }
+}
 
     brushed(event, dimension) {
-        if (!event.selection) {
-            this.activeSelections.delete(dimension);
-        } else {
-            this.activeSelections.set(dimension, event.selection);
-        }
-        this.updateSelections();
+    if (!event.selection) {
+        this.activeSelections.delete(dimension);
+    } else {
+        this.activeSelections.set(dimension, event.selection);
+    }
+    this.updateSelection(); // Changed from updateSelections
+}
+
+    // Remove updateSelection method and rename updateSelections to updateSelection
+updateSelection(selectedItems) {
+    if (!this.g) return;
+
+    // If selectedItems is provided (from scatterplot), use those
+    if (selectedItems) {
+        this.g.selectAll('.line')
+            .transition()
+            .duration(300)
+            .style('stroke', d => selectedItems.some(item => item.index === d.index) ? 'purple' : this.colorScale(d.furnishingstatus))
+            .style('opacity', d => selectedItems.length === 0 ? 0.3 : 
+                selectedItems.some(item => item.index === d.index) ? 1 : 0.1)
+            .style('stroke-width', d => selectedItems.some(item => item.index === d.index) ? 2 : 1);
+        return;
     }
 
-    updateSelections() {
-        const selected = this.data.filter(d => {
-            return Array.from(this.activeSelections.entries())
-                .every(([dim, [y0, y1]]) => {
-                    const y = this.y[dim](+d[dim]);
-                    return y >= y0 && y <= y1;
-                });
-        });
+    // Otherwise, use activeSelections from brushing
+    if (!this.data) return;
+    
+    const selected = this.data.filter(d => {
+        return Array.from(this.activeSelections.entries())
+            .every(([dim, [y0, y1]]) => {
+                const y = this.y[dim](+d[dim]);
+                return y >= y0 && y <= y1;
+            });
+    });
 
-        this.g.selectAll('.line')
-        .call(sel => this.addTransitions(sel))
-        .style('stroke', d => this.colorScale(d.furnishingstatus))
-        .style('opacity', d => selected.includes(d) ? 1 : 0.1)
+    this.g.selectAll('.line')
+        .transition()
+        .duration(300)
+        .style('stroke', d => selected.includes(d) ? 'red' : this.colorScale(d.furnishingstatus))
+        .style('opacity', d => selected.length === 0 ? 0.3 : 
+            selected.includes(d) ? 1 : 0.1)
         .style('stroke-width', d => selected.includes(d) ? 2 : 1);
 
-
-        if (this.onSelectionChange) {
-            this.onSelectionChange(selected);
-        }
+    if (this.onSelectionChange) {
+        this.onSelectionChange(selected);
     }
+}
 
-
-    brushEnded(event, dimension) {
+brushEnded(event, dimension) {
     if (!event.selection) {
         this.activeSelections.delete(dimension);
         if (this.activeSelections.size === 0) {
             this.g.selectAll('.line')
-                .style('stroke', d => this.colorScale(d.furnishingstatus))  // Changed from '#69b3a2'
+                .style('stroke', d => this.colorScale(d.furnishingstatus))
                 .style('opacity', 0.3)
                 .style('stroke-width', 1);
             if (this.onSelectionChange) {
                 this.onSelectionChange([]);
             }
         } else {
-            this.updateSelections();
+            this.updateSelection(); // Changed from updateSelections to updateSelection
         }
     }
-  }
-  // Add this method to the class
+}
+
     addTransitions(selection) {
         return selection.transition()
             .duration(300)
             .ease(d3.easeLinear);
     }
-
 }

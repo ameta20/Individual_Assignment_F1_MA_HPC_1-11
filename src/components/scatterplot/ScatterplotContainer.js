@@ -71,15 +71,14 @@ function ScatterplotContainer({scatterplotData, xAttribute, yAttribute, selected
         }
     },[scatterplotData, xAttribute, yAttribute, scatterplotControllerMethods]);// if dependencies, useEffect is called after each data update, in our case only scatterplotData changes.
 
+        useEffect(() => {
+        const scatterplotD3 = scatterplotD3Ref.current;
+        scatterplotD3.highlightSelectedItems(selectedItems);
+        }, [selectedItems]);
 
-    useEffect(()=>{
-        console.log("ScatterplotContainer useEffect with dependency [selectedItems]," +
-            "called each time selectedItems changes...");
-        // get the current instance of scatterplotD3 from the Ref object...
-        const scatterplotD3 = scatterplotD3Ref.current
-        // call renderScatterplot of ScatterplotD3...;
-        scatterplotD3.highlightSelectedItems(selectedItems)
-    },[selectedItems])
+   
+
+    
     return(
         <div ref={divContainerRef} className="scatterplotDivContainer col2">
         </div>

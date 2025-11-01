@@ -134,24 +134,19 @@ class ScatterplotD3 {
         this.changeBorderAndOpacity(selection,false)
     }
 
-    highlightSelectedItems(selectedItems){
-        // use pattern update to change the border and opacity of the markers:
-        //      - call this.changeBorderAndOpacity(selection,true) for markers that match selectedItems
-        //      - this.changeBorderAndOpacity(selection,false) for markers the do not match selectedItems
-        this.matSvg.selectAll(".markerG")
-            // all elements with the class .markerG (empty the first time)
-            .data(selectedItems,(itemData)=>itemData.index)
-            .join(
-                enter=>enter,
-                update=>{
-                    this.changeBorderAndOpacity(update, true);
-                },
-                exit => {
-                    this.changeBorderAndOpacity(exit, false);
-                }
-            )
-        ;
-    }
+    highlightSelectedItems(selectedIds) {
+        this.matSvg.selectAll(".markerCircle")
+            .attr("fill", d => selectedIds.includes(d.id) ? "red" : "#69b3a2")
+            .attr("opacity", d =>
+            selectedIds.length === 0
+                ? 0.8
+                : selectedIds.includes(d.id)
+                ? 1
+                : 0.3
+            );
+        }
+
+
 
     updateAxis = function(visData,xAttribute,yAttribute){
         // compute min max using d3.min/max(visData.map(item=>item.attribute))
