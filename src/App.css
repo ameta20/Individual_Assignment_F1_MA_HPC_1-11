@@ -1,34 +1,101 @@
+/* App.css */
+
 .App {
     text-align: center;
-    height: 100%;
+    height: 100vh; /* App takes full viewport height */
+    display: flex; /* Make App a flex container */
+    flex-direction: column; /* Stack App's direct children vertically */
 }
-#MultiviewContainer{
-    height: 100%;
-}
-.row:after {
-    content: "";
-    display: table;
-    clear: both;
-}
-.col2{
-    float: left;
-    width: 50%;
-}
-
 
 #MultiviewContainer {
     display: flex;
-    height: 100vh;
-    padding: 20px;
-    gap: 20px;
+    flex-direction: row; /* Layout items horizontally */
+    flex-wrap: wrap; /* Allow items to wrap to the next line if they don't fit */
+    justify-content: flex-start; /* Align items to the start of the line */
+    align-items: flex-start; /* Align items to the start of the cross axis (top) */
+    width: 100%; /* Ensure container uses full width */
+    height: auto; /* Allow height to adjust based on content */
+    flex-grow: 1; /* Allow it to take available vertical space in App */
+    overflow: auto; /* Add scroll if content exceeds available height */
 }
 
-.parallel-coordinates-container {
-    flex: 1;
-    min-height: 400px;
-}
-
+/* ScatterplotContainer: Retain its natural size or give it a specific size */
 .scatterplotDivContainer {
-    flex: 1;
-    min-height: 400px;
+    /* Assuming ScatterplotD3 sets an internal SVG size based on parent's width/height */
+    /* You might need to set an explicit width/height here for consistency, e.g.: */
+    width: 50%; /* Let's say it takes 50% width to be on the first line */
+    height: 400px; /* Example fixed height for the scatterplot */
+    /* Or, if you want it to dictate the full width of the first row */
+    /* width: 100%; */
+    /* If you set width: 100%, then the parallel coordinates will automatically wrap to the next line. */
+    /* Let's start with 100% width for scatterplot to ensure it's alone on the first row */
+    width: 100%;
+    /* Keep the height for scatterplot from its internal calculation,
+       or define it here if you want it fixed, e.g., height: 400px; */
+    height: 45vh; /* Or a percentage of viewport height */
+}
+
+/* ParallelCoordinatesContainer: Take full width on the next line */
+.parallel-coordinates-container {
+    width: 100%; /* Forces it to take full width, wrapping it to the next line */
+    height: 55vh; /* Take remaining vertical space or define a fixed height */
+    /* Or, if you want it to just naturally fit its content, you could remove height,
+       but D3 often needs a defined height for its SVG. */
+}
+
+/* Ensure D3 SVGs inside fill their respective containers */
+.scatterplotDivContainer svg,
+.parallel-coordinates-container svg {
+    width: 100%;
+    height: 100%;
+}/* App.css */
+
+.App {
+    text-align: center;
+    height: 100vh; /* App takes full viewport height */
+    display: flex; /* Make App a flex container */
+    flex-direction: column; /* Stack App's direct children vertically */
+}
+
+#MultiviewContainer {
+    display: flex;
+    flex-direction: row; /* Layout items horizontally */
+    flex-wrap: wrap; /* Allow items to wrap to the next line if they don't fit */
+    justify-content: flex-start; /* Align items to the start of the line */
+    align-items: flex-start; /* Align items to the start of the cross axis (top) */
+    width: 100%; /* Ensure container uses full width */
+    height: auto; /* Allow height to adjust based on content */
+    flex-grow: 1; /* Allow it to take available vertical space in App */
+    overflow: auto; /* Add scroll if content exceeds available height */
+}
+
+/* ScatterplotContainer: Retain its natural size or give it a specific size */
+.scatterplotDivContainer {
+    /* Assuming ScatterplotD3 sets an internal SVG size based on parent's width/height */
+    /* You might need to set an explicit width/height here for consistency, e.g.: */
+    width: 50%; /* Let's say it takes 50% width to be on the first line */
+    height: 400px; /* Example fixed height for the scatterplot */
+    /* Or, if you want it to dictate the full width of the first row */
+    /* width: 100%; */
+    /* If you set width: 100%, then the parallel coordinates will automatically wrap to the next line. */
+    /* Let's start with 100% width for scatterplot to ensure it's alone on the first row */
+    width: 100%;
+    /* Keep the height for scatterplot from its internal calculation,
+       or define it here if you want it fixed, e.g., height: 400px; */
+    height: 45vh; /* Or a percentage of viewport height */
+}
+
+/* ParallelCoordinatesContainer: Take full width on the next line */
+.parallel-coordinates-container {
+    width: 100%; /* Forces it to take full width, wrapping it to the next line */
+    height: 55vh; /* Take remaining vertical space or define a fixed height */
+    /* Or, if you want it to just naturally fit its content, you could remove height,
+       but D3 often needs a defined height for its SVG. */
+}
+
+/* Ensure D3 SVGs inside fill their respective containers */
+.scatterplotDivContainer svg,
+.parallel-coordinates-container svg {
+    width: 100%;
+    height: 100%;
 }

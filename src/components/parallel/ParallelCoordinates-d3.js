@@ -2,10 +2,12 @@ import * as d3 from "d3";
 
 export default class ParallelCoordinatesD3 {
     constructor({ svg, width, height, onSelectionChange }) {
-        this.margin = { top: 30, right: 50, bottom: 30, left: 50 };
+        this.margin = { top: 60, right: 30, bottom: 30, left: 30 };
         this.width = width - this.margin.left - this.margin.right;
         this.height = height - this.margin.top - this.margin.bottom;
-        this.svg = d3.select(svg);
+        this.svg = d3.select(svg)
+            .attr("width", width)
+            .attr("height", height);
         this.onSelectionChange = onSelectionChange;
         this.activeSelections = new Map();
 
@@ -13,64 +15,123 @@ export default class ParallelCoordinatesD3 {
             .domain(['furnished', 'semi-furnished', 'unfurnished'])
             .range(['#1f77b4', '#2ca02c', '#ff7f0e']);
 
-        this.dimensions = ['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking'];
+        this.dimensions = [
+            'price', 'area', 'bedrooms', 'bathrooms', 'stories', 'mainroad',
+            'guestroom', 'basement', 'hotwaterheating', 'airconditioning',
+            'parking', 'prefarea', 'furnishingstatus'
+        ];
 
         this.y = {};
+        
         this.x = d3.scalePoint()
             .domain(this.dimensions)
             .range([0, this.width])
-            .padding(1);
+            .padding(0.8);
 
         this.g = this.svg.append('g')
             .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
+        
+        this.linesGroup = this.g.append("g").attr("class", "lines-group");
+        this.axesGroup = this.g.append("g").attr("class", "axes-group");
+
+        this.lineGenerator = d3.line()
+            .defined(p => p[1] !== undefined && p[1] !== null)
+            .x(p => p[0])
+            .y(p => p[1]);
     }
 
     updateData(data) {
-        this.data = data; // ✅ store data globally in the class
+        this.data = data;
 
-        // Create scales for each dimension
+        this.x.range([0, this.width]).domain(this.dimensions);
+
         this.dimensions.forEach(dimension => {
-            this.y[dimension] = d3.scaleLinear()
-                .domain(d3.extent(data, d => +d[dimension]))
-                .range([this.height, 0])
-                .nice();
+            if (['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking'].includes(dimension)) {
+                this.y[dimension] = d3.scaleLinear()
+                    .domain(d3.extent(data, d => +d[dimension]))
+                    .range([this.height, 0])
+                    .nice();
+            } else {
+                // Categorical scale: Filter out undefined, null, and empty strings
+                const uniqueValues = Array.from(new Set(
+                    data.map(d => d[dimension])
+                        .filter(v => v !== undefined && v !== null && v !== "")
+                )).sort();
+                this.y[dimension] = d3.scalePoint()
+                    .domain(uniqueValues)
+                    .range([this.height, 0])
+                    .padding(0.5);
+            }
         });
 
-        // Draw axes
-        const axes = this.g.selectAll('.axis')
-            .data(this.dimensions)
-            .join('g')
-            .attr('class', 'axis')
-            .attr('transform', d => `translate(${this.x(d)},0)`);
+        const axes = this.axesGroup.selectAll('.axis')
+            .data(this.dimensions, d => d)
+            .join(
+                enter => enter.append('g')
+                    .attr('class', 'axis')
+                    .attr('transform', d => `translate(${this.x(d)},0)`),
+                update => update
+                    .transition(this.addTransitions(d3.transition()))
+                    .attr('transform', d => `translate(${this.x(d)},0)`),
+                exit => exit.remove()
+            );
 
         axes.each((d, i, nodes) => {
-            d3.select(nodes[i])
-                .call(d3.axisLeft(this.y[d]))
-                .call(g => g.append('text')
-                    .attr('y', -9)
-                    .attr('text-anchor', 'middle')
-                    .text(d)
-                    .style('fill', 'black'));
+            const axisG = d3.select(nodes[i]);
+
+            axisG.selectAll('*').remove();
+
+            axisG.call(d3.axisLeft(this.y[d]));
+            
+            axisG.append("text")
+                .attr("class", "axis-title")
+                .attr("y", -this.margin.top / 2)
+                .attr("x", 0)
+                .attr("text-anchor", "middle")
+                .style("fill", "black")
+                .style("font-weight", "bold")
+                .style("font-size", "10px")
+                .text(d);
+
+            axisG.select(".domain").remove();
+
+            if (!['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking'].includes(d)) {
+                axisG.selectAll(".tick text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-0.8em")
+                    .attr("dy", "0.15em")
+                    .attr("transform", "rotate(-30)");
+            } else {
+                axisG.selectAll(".tick text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-0.5em")
+                    .attr("dy", "0.32em")
+                    .attr("transform", null);
+            }
         });
+        
+        this.linesGroup.selectAll('.line')
+            .data(this.data, d => d.index)
+            .join(
+                enter => enter.append('path')
+                    .attr('class', 'line')
+                    .attr('d', d => this.lineGenerator(
+                        this.dimensions.map(dim => [this.x(dim), this.y[dim](d[dim])])
+                    ))
+                    .style('fill', 'none')
+                    .style('stroke', d => this.colorScale(d.furnishingstatus))
+                    .style('opacity', 0.3)
+                    .on('mouseover', (event, d) => this.highlightLine(d))
+                    .on('mouseout', () => this.unhighlightLine()),
+                update => update
+                    .transition(this.addTransitions(d3.transition()))
+                    .attr('d', d => this.lineGenerator(
+                        this.dimensions.map(dim => [this.x(dim), this.y[dim](d[dim])])
+                    ))
+                    .style('stroke', d => this.colorScale(d.furnishingstatus)),
+                exit => exit.remove()
+            );
 
-        // Define path generator as a class property
-        this.path = d => d3.line()(
-            this.dimensions.map(dim => [this.x(dim), this.y[dim](+d[dim])])
-        );
-
-        // Draw lines
-        this.g.selectAll('.line')
-            .data(this.data, d => d.index) // use stable index
-            .join('path')
-            .attr('class', 'line')
-            .attr('d', d => this.path(d))
-            .style('fill', 'none')
-            .style('stroke', d => this.colorScale(d.furnishingstatus))
-            .style('opacity', 0.3)
-            .on('mouseover', (event, d) => this.highlightLine(d))
-            .on('mouseout', () => this.unhighlightLine());
-
-        // Add brushes
         this.dimensions.forEach(dimension => {
             const brush = d3.brushY()
                 .extent([[this.x(dimension) - 10, 0], [this.x(dimension) + 10, this.height]])
@@ -86,104 +147,104 @@ export default class ParallelCoordinatesD3 {
     }
 
     highlightLine(d) {
-        this.g.selectAll('.line')
-            .style('opacity', 0.1);
-
-        this.g.selectAll('.line')
-            .filter(line => line.index === d.index)
-            .style('opacity', 1)
-            .style('stroke-width', 2)
-            .raise();
-    }
-
-   unhighlightLine() {
-    if (this.activeSelections.size === 0) {
-        this.g.selectAll('.line')
-            .style('opacity', 0.3)
-            .style('stroke-width', 1)
-            .style('stroke', d => this.colorScale(d.furnishingstatus));
-    } else {
-        this.updateSelection(); // Changed from updateSelections to updateSelection
-    }
-}
-
-   brushed(event, dimension) {
-    if (!event.selection) {
-        this.activeSelections.delete(dimension);
-    } else {
-        this.activeSelections.set(dimension, event.selection);
-    }
-    this.updateSelection();
-}
-
-// Modify the updateSelection method
-updateSelection(selectedItems) {
-    if (!this.g) return;
-
-    // For selections from scatterplot
-    if (selectedItems) {
-        console.log("Received selection from scatterplot:", selectedItems); // Debug
-        const selectedIndices = new Set(selectedItems.map(d => d.index));
-        this.g.selectAll('.line')
+        this.linesGroup.selectAll('.line')
+            .filter(item => item === d)
+            .raise()
             .transition()
-            .duration(300)
-            .style('stroke', d => {
-                const isSelected = selectedIndices.has(d.index);
-                return isSelected ? 'purple' : this.colorScale(d.furnishingstatus);
-            })
-            .style('opacity', d => {
-                const isSelected = selectedIndices.has(d.index);
-                return selectedItems.length === 0 ? 0.3 : isSelected ? 1 : 0.1;
-            });
-        return;
+            .duration(100)
+            .style('stroke', 'red')
+            .style('stroke-width', 2.5)
+            .style('opacity', 1);
+
+        this.linesGroup.selectAll('.line')
+            .filter(item => item !== d)
+            .transition()
+            .duration(100)
+            .style('opacity', 0.1);
     }
 
-    // For brushing in parallel coordinates
-    if (!this.data) return;
-    
-    const selected = this.data.filter(d => {
-        return Array.from(this.activeSelections.entries())
-            .every(([dim, [y0, y1]]) => {
-                const y = this.y[dim](+d[dim]);
-                return y >= y0 && y <= y1;
-            });
-    });
-
-    console.log("Selected from parallel coordinates:", selected); // Debug
-    const selectedIndices = new Set(selected.map(d => d.index));
-
-    this.g.selectAll('.line')
-        .transition()
-        .duration(300)
-        .style('stroke', d => selectedIndices.has(d.index) ? 'red' : this.colorScale(d.furnishingstatus))
-        .style('opacity', d => selected.length === 0 ? 0.3 : 
-            selectedIndices.has(d.index) ? 1 : 0.1);
-
-    // Notify the parent component about the selection
-    if (this.onSelectionChange) {
-        // Make sure we pass the complete data objects with index
-        this.onSelectionChange(selected.map(d => ({...d, selected: true})));
-    }
-}
-
-
-brushEnded(event, dimension) {
-    if (!event.selection) {
-        this.activeSelections.delete(dimension);
-    }
-    // We update the selection on brush, but also on end to capture final state
-    this.brushed(event, dimension);
-
-    if (this.activeSelections.size === 0) {
-        if (this.onSelectionChange) {
-            this.onSelectionChange([]);
+    unhighlightLine() {
+        if (this.activeSelections.size === 0) {
+            this.linesGroup.selectAll('.line')
+                .transition()
+                .duration(100)
+                .style('stroke', d => this.colorScale(d.furnishingstatus))
+                .style('stroke-width', 1.5)
+                .style('opacity', 0.3);
+        } else {
+            this.updateSelection();
         }
     }
-}
+
+    brushed(event, dimension) {
+        if (!event.selection) {
+            this.activeSelections.delete(dimension);
+        } else {
+            this.activeSelections.set(dimension, event.selection);
+        }
+        this.updateSelection();
+    }
+
+    updateSelection(selectedItems) {
+        if (!this.g || !this.data) return;
+
+        if (selectedItems !== undefined) {
+            const selectedIndices = new Set(selectedItems.map(d => d.index));
+            this.linesGroup.selectAll('.line')
+                .transition()
+                .duration(300)
+                .style('stroke', d => selectedIndices.has(d.index) ? 'purple' : this.colorScale(d.furnishingstatus))
+                .style('stroke-width', d => selectedIndices.has(d.index) ? 2.5 : 1.5)
+                .style('opacity', d => selectedIndices.has(d.index) ? 1 : 0.1);
+            
+            if (selectedItems.length === 0 && this.activeSelections.size === 0) {
+                 this.linesGroup.selectAll('.line')
+                    .transition()
+                    .duration(300)
+                    .style('stroke', d => this.colorScale(d.furnishingstatus))
+                    .style('stroke-width', 1.5)
+                    .style('opacity', 0.3);
+            }
+
+            return;
+        }
+
+        const selected = this.data.filter(d => {
+            return Array.from(this.activeSelections.entries())
+                .every(([dim, [y0, y1]]) => {
+                    const value = d[dim];
+                    const y = this.y[dim](value);
+                    return y !== undefined && y >= y0 && y <= y1;
+                });
+        });
+
+        const selectedIndices = new Set(selected.map(d => d.index));
+
+        this.linesGroup.selectAll('.line')
+            .transition()
+            .duration(300)
+            .style('stroke', d => selectedIndices.has(d.index) ? 'red' : this.colorScale(d.furnishingstatus))
+            .style('stroke-width', d => selectedIndices.has(d.index) ? 2.5 : 1.5)
+            .style('opacity', d => {
+                if (this.activeSelections.size === 0) return 0.3;
+                return selectedIndices.has(d.index) ? 1 : 0.1;
+            });
+
+        if (this.onSelectionChange) {
+            this.onSelectionChange(selected.map(d => ({...d, selected: true})));
+        }
+    }
+
+    brushEnded(event, dimension) {
+        if (!event.selection) {
+            this.activeSelections.delete(dimension);
+        }
+        this.updateSelection();
+    }
 
     addTransitions(selection) {
         return selection.transition()
-            .duration(300)
-            .ease(d3.easeLinear);
+            .duration(500)
+            .ease(d3.easeCubicInOut);
     }
 }

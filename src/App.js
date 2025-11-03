@@ -22,7 +22,14 @@ function App() {
                 bathrooms: +d.bathrooms,
                 stories: +d.stories,
                 parking: +d.parking,
-                index: i
+                mainroad: d.mainroad,
+                guestroom: d.guestroom,
+                basement: d.basement,
+                hotwaterheating: d.hotwaterheating,
+                airconditioning: d.airconditioning,
+                prefarea: d.prefarea,
+                furnishingstatus: d.furnishingstatus,
+                index: i // add index for unique identification
             }));
             setData(processed);
         });
@@ -31,23 +38,11 @@ function App() {
     // Shared controller for both visualizations
     const visualizationController = {
         updateSelectedItems: (items, source) => {
-            console.log(`Selection update from ${source}:`, items);
-            
-            if (!Array.isArray(items) || items.length === 0) {
-                setSelectedItems([]);
+            if (!Array.isArray(items)) {
                 return;
             }
-
-            // Find matching items based on price and area values
-            const matchingItems = data.filter(d => 
-                items.some(item => 
-                    d.price === item.price && 
-                    d.area === item.area
-                )
-            );
-            
-            console.log("Matching items:", matchingItems);
-            setSelectedItems(matchingItems);
+            // items from child components are full data object and can be set directly as selected
+            setSelectedItems(items);
         }
     };
 
@@ -62,7 +57,7 @@ function App() {
 
     return (
         <div className="App">
-            <div id={"MultiviewContainer"} className={"row"}>
+            <div id={"MultiviewContainer"} className={"column"}>
                 <ScatterplotContainer
                     scatterplotData={data}
                     xAttribute={"area"}

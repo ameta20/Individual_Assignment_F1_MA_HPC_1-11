@@ -1,16 +1,14 @@
 import './Scatterplot.css'
 import {useEffect, useRef} from 'react';
-
 import ScatterplotD3 from './Scatterplot-d3';
 
-// TODO: import action methods from reducers
 
 function ScatterplotContainer({scatterplotData, xAttribute, yAttribute, selectedItems, scatterplotControllerMethods}){
 
-    // every time the component re-render
+   
     useEffect(()=>{
-        // console.log("ScatterplotContainer useEffect (called each time scatterplot re-renders)");
-    }); // if no dependencies, useEffect is called at each re-render
+        console.log("ScatterplotContainer useEffect (called each time scatterplot re-renders)");
+    });
 
     const divContainerRef=useRef(null);
     const scatterplotD3Ref = useRef(null)
@@ -33,12 +31,10 @@ function ScatterplotContainer({scatterplotData, xAttribute, yAttribute, selected
         scatterplotD3.create({size:getChartSize()});
         scatterplotD3Ref.current = scatterplotD3;
         return ()=>{
-            // did unmout, the return function is called once the component did unmount (removed for the screen)
-            console.log("ScatterplotContainer useEffect [] return function, called when the component did unmount...");
             const scatterplotD3 = scatterplotD3Ref.current;
             scatterplotD3.clear()
         }
-    },[]);// if empty array, useEffect is called after the component did mount (has been created)
+    },[]);
 
 
     const scatterplotDataRef = useRef(scatterplotData);
