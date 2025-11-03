@@ -1,7 +1,7 @@
 import './App.css';
 import {useState, useEffect} from 'react'
 import {fetchCSV} from "./utils/helper";
-import * as d3 from 'd3';
+import * as d3 from 'd3'; // Not directly used in App.js, but good to keep if used elsewhere
 import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer";
 import ParallelCoordinatesContainer from "./components/parallel/ParallelCoordinatesContainer";
 
@@ -58,14 +58,18 @@ function App() {
     return (
         <div className="App">
             <div id={"MultiviewContainer"} className={"column"}>
+                <h1>Housing Data Visualization</h1>
                 <ScatterplotContainer
+                    title="House Price vs. Area" // Title for the scatterplot
                     scatterplotData={data}
                     xAttribute={"area"}
                     yAttribute={"price"}
                     selectedItems={selectedItems}
                     scatterplotControllerMethods={visualizationController}
                 />
+                {/* Add a title prop to ParallelCoordinatesContainer */}
                 <ParallelCoordinatesContainer
+                    title="Housing Data Attributes" // Title for the parallel coordinates plot
                     data={data}
                     selectedItems={selectedItems}
                     controllerMethods={visualizationController}

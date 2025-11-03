@@ -11,9 +11,9 @@ export default class ParallelCoordinatesD3 {
         this.onSelectionChange = onSelectionChange;
         this.activeSelections = new Map();
 
-        this.colorScale = d3.scaleOrdinal()
-            .domain(['furnished', 'semi-furnished', 'unfurnished'])
-            .range(['#1f77b4', '#2ca02c', '#ff7f0e']);
+        // Initialize colorScale without a fixed domain/range here
+        // It will be set dynamically in updateData
+        this.colorScale = d3.scaleOrdinal(); 
 
         this.dimensions = [
             'price', 'area', 'bedrooms', 'bathrooms', 'stories', 'mainroad',
@@ -34,6 +34,10 @@ export default class ParallelCoordinatesD3 {
         this.linesGroup = this.g.append("g").attr("class", "lines-group");
         this.axesGroup = this.g.append("g").attr("class", "axes-group");
 
+        this.legendGroup = this.svg.append("g")
+            .attr("class", "legend-group")
+            .attr("transform", `translate(${width - 150}, 20)`);
+
         this.lineGenerator = d3.line()
             .defined(p => p[1] !== undefined && p[1] !== null)
             .x(p => p[0])
@@ -42,6 +46,22 @@ export default class ParallelCoordinatesD3 {
 
     updateData(data) {
         this.data = data;
+
+        // --- Dynamic Color Scale Update ---
+        // Get all unique furnishing statuses present in the data
+        const uniqueFurnishingStatuses = Array.from(new Set(
+            data.map(d => d.furnishingstatus)
+                .filter(v => v !== undefined && v !== null && v !== "") // Filter out missing status
+        )).sort(); // Sort for consistent legend order
+
+        // Define a set of colors. You can extend this if more categories appear.
+        const customColors = ['#1f77b4', '#2ca02c', '#ff7f0e', '#d62728', '#9467bd', '#8c564b']; 
+        // If you expect more than 3, add more colors here, or use a d3 scheme like d3.schemeCategory10.
+        // For example: const customColors = d3.schemeCategory10;
+
+        this.colorScale
+            .domain(uniqueFurnishingStatuses) // Set the domain dynamically
+            .range(customColors.slice(0, uniqueFurnishingStatuses.length)); // Use only as many colors as needed
 
         this.x.range([0, this.width]).domain(this.dimensions);
 
@@ -52,7 +72,6 @@ export default class ParallelCoordinatesD3 {
                     .range([this.height, 0])
                     .nice();
             } else {
-                // Categorical scale: Filter out undefined, null, and empty strings
                 const uniqueValues = Array.from(new Set(
                     data.map(d => d[dimension])
                         .filter(v => v !== undefined && v !== null && v !== "")
@@ -144,6 +163,44 @@ export default class ParallelCoordinatesD3 {
                 .attr('class', `brush brush-${dimension}`)
                 .call(brush);
         });
+
+        this.drawLegend(); 
+    }
+
+    drawLegend() {
+        const legendRectSize = 10;
+        const legendSpacing = 4;
+
+        const legendItems = this.legendGroup.selectAll(".legend-item")
+            .data(this.colorScale.domain()) // Now, this domain is dynamic
+            .join(
+                enter => {
+                    const g = enter.append("g")
+                        .attr("class", "legend-item")
+                        .attr("transform", (d, i) => `translate(0, ${i * (legendRectSize + legendSpacing)})`);
+                    
+                    g.append("rect")
+                        .attr("width", legendRectSize)
+                        .attr("height", legendRectSize)
+                        .style("fill", d => this.colorScale(d));
+
+                    g.append("text")
+                        .attr("x", legendRectSize + legendSpacing)
+                        .attr("y", legendRectSize / 2)
+                        .attr("dy", "0.35em")
+                        .style("font-size", "10px")
+                        .text(d => d);
+                    return g;
+                },
+                update => update
+                    .transition(this.addTransitions(d3.transition()))
+                    .attr("transform", (d, i) => `translate(0, ${i * (legendRectSize + legendSpacing)})`)
+                    .call(update => {
+                        update.select("rect").style("fill", d => this.colorScale(d));
+                        update.select("text").text(d => d);
+                    }),
+                exit => exit.remove()
+            );
     }
 
     highlightLine(d) {
